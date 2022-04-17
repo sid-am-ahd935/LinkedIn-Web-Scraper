@@ -1,0 +1,32 @@
+[
+    {
+        "Company name": "Adobe",
+        "Description": null,
+        "Location": "Software Development San Jose, CA ",
+        "Employees": "3,443,49"
+    },
+    {
+        "Company name": "IBM",
+        "Description": null,
+        "Location": "IT Services and IT Consulting Armonk, New York, NY ",
+        "Employees": "13,784,06"
+    },
+    {
+        "Company name": "WHITESWAN CONSULTANCY SERVICES PRIVATE LIMITED",
+        "Description": null,
+        "Location": "Staffing and Recruiting KOLKATA, West Bengal ",
+        "Employees": "31"
+    },
+    {
+        "Company name": "Apple",
+        "Description": null,
+        "Location": "Computers and Electronics Manufacturing Cupertino, California ",
+        "Employees": "15,995,53"
+    },
+    {
+        "Company name": "Freudenberg Filtration Technologies",
+        "Description": null,
+        "Location": "Environmental Services Weinheim ",
+        "Employees": "30,31"
+    }
+]
