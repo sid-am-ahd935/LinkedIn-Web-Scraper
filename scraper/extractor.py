@@ -1,4 +1,5 @@
 from .utils import to_file, time, os, By
+from .models import connect_db, add_job_type1, add_job_type2, close_conn
 
 
 
@@ -6,6 +7,7 @@ from .utils import to_file, time, os, By
 ## Note this scrapper function only works with this website.
 def extract_categories(driver, to_exclude= [], name= "all_categories.txt"):
     driver.get('https://careerguide.com/career-options')
+    conn = connect_db()
     time.sleep(3)                                                       # Giving browser time to load all things
     categories = dict()
     to_exclude = set(to_exclude)
@@ -34,9 +36,25 @@ def extract_categories(driver, to_exclude= [], name= "all_categories.txt"):
     # JSON file for viewing purposes only
     to_file("categories.json", key_values= categories)
 
+    # Storing data in the database
+    for category in categories.keys():
+        output = add_job_type1(conn, category)
+        print(output)
+
+    subcategories = []
+    for subcategory_list in categories.values():
+        subcategories += subcategory_list
+    
+    for subcategory in subcategories:
+        output = add_job_type2(conn, subcategory)
+        print(output)
+        
+
     # Creating a text file for storing all categories in each new line
     categories = sum(categories.values(), [])
     to_file(name, values= categories)
+
+    conn.close()
     
     return categories
 

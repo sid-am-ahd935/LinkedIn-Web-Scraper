@@ -3,6 +3,7 @@ import json
 import time
 import os
 import re
+import traceback
 
 from selenium.webdriver.common.by import By
 
@@ -29,7 +30,7 @@ def to_file(name= "", value= '', values= [], key_values= {}, access_type:["w" or
 # To store the loaded categories in the cache
 class Cache:
     categories = []
-    companies = []
+    companies = set()
     sleep_time = 5
     # Increase this time if your internet connection is slow
     # But even if it is fast, do not make this less than 2.
@@ -37,9 +38,9 @@ class Cache:
     company_data = list()
 
     @staticmethod
-    def store(res : str, company : str):
+    def store(res : str, company : str, state : str, category : str):
         Cache.data.append(res)
-        Cache.companies.append(company)
+        Cache.companies.add((company, state, category))      # Data used to extract companies
     
     @staticmethod
     def store_company(res : str):
@@ -48,7 +49,7 @@ class Cache:
     @staticmethod
     def save(filename : str, access_type:['w' or 'a']= "w"):
         to_file(f"{filename}.txt", access_type= access_type, values= Cache.data)
-        to_file(f"all_companies.txt", access_type= access_type, values= list(set(Cache.companies)))
+        # to_file(f"all_companies.txt", access_type= access_type, key_values= list(set(Cache.companies)))
 
     def save_companies(filename : str, access_type:['w' or 'a']= "w"):
         with open(f"companies_{filename}.txt", access_type) as f:

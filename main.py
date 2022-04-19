@@ -1,7 +1,7 @@
-import traceback
-from scraper.utils import Cache, to_file
+from scraper.utils import Cache, to_file, traceback
 from scraper.extractor import load_categories
 from scraper.webdriver import linkedin_login, get_jobs_by_location, create_driver, scrape_companies
+from scraper.models import connect_db, close_conn, create_tables, add_job_type1, add_job_type2, add_state, add_company_detail, add_job
 
 
 
@@ -24,6 +24,8 @@ def main(driver, login_required= True):
     print("Scraping the companies...")
     scrape_companies(driver)
     Cache.save_companies("Data")
+
+    print("Companies have been scraped.")
 
 
 

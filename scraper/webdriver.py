@@ -7,6 +7,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 from .extractor import load_categories
 from .utils import Cache, os, re, time, urlify, By
+from .models import connect_db, add_state, add_company_detail, add_job, close_conn
 
 
 # To get find an element inside the driver page and wait until it is loaded fully
@@ -97,7 +98,7 @@ def load_all_contents_by_scrolling(driver, sec= 1):
 
 
 # This function scrapes the website when the driver is loaded onto a specific page
-def scrape_jobs(driver):
+def scrape_jobs(driver, conn, categ, state):
     """
     When the driver is on the job results page, this function scrapes the webpage for finding the the jobs
     """
@@ -141,7 +142,9 @@ def scrape_jobs(driver):
 
             job_title, job_company, job_location, job_type, *_ = job_info
             res = f'{job_title} by {job_company} at {job_location}' + str(f'({job_type})' if job_type else ' ')
-            Cache.store(res, company.get_attribute("href"))
+            Cache.store(res, company.get_attribute("href"), state, categ)
+
+            add_job(conn, company= job_company, position= job_title, location= job_location)
             
             i += 1
 
@@ -156,7 +159,7 @@ def scrape_jobs(driver):
 
 
 # For getting to the search results page with each given category, if no location given, defaults to India
-def get_jobs(driver, location= "India"):
+def get_jobs(driver, conn, location= "India"):
     """
     Loads from the categories given inside the cache, if not present, calls the extractor to load it.
     When KeyboardInterrupt signal is found, stops the data extraction, and saves all the collected into the file.
@@ -174,7 +177,7 @@ def get_jobs(driver, location= "India"):
 
             driver.get(f"https://linkedin.com/jobs/search/?location={urlify(location)}&keywords={urlify(categ)}")
 
-            scrape_jobs(driver)
+            scrape_jobs(driver, conn, categ, location)
     
     except KeyboardInterrupt:
         Cache.save(filename= "Data", access_type= "a")
@@ -187,14 +190,22 @@ def get_jobs_by_location(driver, locations= []):
     Calls the get_jobs() function repeated by each call having different location.
     Also when no location is given, defaults to India.
     """
+    conn = connect_db()
+
     if not locations:
         locations = []
         locations.append("India")        # If no location given, searches with Country location
     
+    else:
+        for state in locations:
+            add_state(conn, state)
+    
     for loc in locations:
-        get_jobs(driver, loc)
+        get_jobs(driver, conn, loc)
     
     Cache.save("Data")
+    close_conn(conn)
+    
         
     return
 
@@ -206,25 +217,46 @@ def scrape_companies(driver, file= "all_companies.txt"):
         with open(file) as f:
             Cache.companies = f.readlines()
     
+    # comapnies are stored in the format: (company_link, state, category)
     companies = set(Cache.companies)
+    visited = dict()        # If a company is visited, don't visit again, copy name and description from previous visit
+    conn = connect_db()
 
-    for comp in companies:
+    for link, state, categ in companies:
         try:
-            driver.get(comp)
-            comp_info = get_element(driver, By.XPATH, '//div[contains(@class, "org-top-card__primary-content")]')
-            comp_desc = get_element(driver, By.XPATH, '//p[contains(@class, "break-words white-space-pre-wrap mb5 text-body-small t-black--light")]')
-            m = re.finditer("\d+", comp_info.text)
-            m = list(m)
-            comp_name, comp_location = comp_info.text[:m[0].start()].splitlines()
-            comp_emps = ','.join([a.group() for a in m])[:-1]
+            if link not in visited:
+                driver.get(link)
+                comp_info = get_element(driver, By.XPATH, '//div[contains(@class, "org-top-card__primary-content")]')
+                comp_desc = get_element(driver, By.XPATH, '//p[contains(@class, "break-words white-space-pre-wrap mb5 text-body-small t-black--light")]/text()')
+                # //*[@id="ember652"]/section/p/text()
+                m = re.finditer("\d+", comp_info.text)
+                m = list(m)
+                comp_name, comp_location = comp_info.text[:m[0].start()].splitlines()
+                comp_emps = ','.join([a.group() for a in m])
 
-            content = {
-                "Company name" : comp_name,
-                "Description" : comp_desc,
-                "Location" : comp_location,
-                "Employees" : comp_emps,
-            }
+                content = {
+                    "Company name" : comp_name,
+                    "Description" : comp_desc,
+                    "Location" : comp_location,
+                    "Employees" : comp_emps,
+                }
 
-            Cache.store_company(content)
-        except (ValueError or TimeoutError or TimeoutException):
+                visited[link] = (comp_name, comp_desc, comp_location, comp_emps)
+
+                Cache.store_company(content)
+                add_company_detail(conn, name= comp_name, desc= comp_desc, state= state, subcategory= categ)
+                
+            else:
+                comp_name, comp_desc, comp_location, comp_emps = visited[link]
+                content = {
+                    "Company name" : comp_name,
+                    "Description" : comp_desc,
+                    "Location" : comp_location,
+                    "Employees" : comp_emps,
+                }
+
+                Cache.store_company(content)
+                add_company_detail(conn, name= comp_name, desc= comp_desc, state= state, subcategory= categ)
+
+        except (ValueError or TimeoutError or TimeoutException or AttributeError):
             continue
